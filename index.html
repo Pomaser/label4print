@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generátor 3D Štítků</title>
+    <script src="./libs/tailwindcss.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #canvas-container { width: 100%; height: 100vh; background-color: #f0f0f0; }
+        .control-panel {
+            backdrop-filter: blur(10px);
+            background-color: rgba(255, 255, 255, 0.95);
+        }
+        /* Custom scrollbar for controls */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        
+        /* Hide number input spinners */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+
+        /* Icon button styles */
+        .align-btn {
+            @apply p-2 rounded border border-slate-300 hover:bg-slate-100 text-slate-600 transition-colors cursor-pointer;
+        }
+        .align-btn.active {
+            @apply bg-indigo-100 border-indigo-500 text-indigo-700;
+        }
+
+        .icon-btn {
+            @apply p-1.5 rounded text-slate-500 hover:bg-slate-100 transition-colors cursor-pointer border border-transparent hover:border-slate-300;
+        }
+        .icon-btn.active {
+            @apply text-indigo-600 bg-indigo-50 border-indigo-200;
+        }
+
+        .style-btn {
+             @apply w-8 h-8 flex items-center justify-center rounded border border-slate-300 hover:bg-slate-100 text-slate-700 font-serif transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed;
+        }
+        .style-btn.active {
+            @apply bg-indigo-600 border-indigo-600 text-white;
+        }
+        
+        /* File input custom style */
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+        .file-input-wrapper input[type=file] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+    </style>
+    <!-- Import Map for Three.js modules -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "./libs/build/three.module.js",
+            "three/addons/": "./libs/examples/jsm/"
+        }
+    }
+    </script>
+</head>
+<body class="text-slate-800">
+
+    <!-- Main Layout -->
+    <div class="relative w-full h-screen flex flex-col md:flex-row">
+        
+        <!-- Control Panel -->
+        <div class="control-panel w-full md:w-80 h-auto md:h-full absolute md:relative z-10 border-r border-slate-200 shadow-xl overflow-y-auto p-5 flex flex-col gap-4 order-2 md:order-1">
+            
+            <div class="mb-1">
+                <h1 class="text-xl font-bold text-indigo-600 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5" />
+                    </svg>
+                    <span data-i18n="title">3D Štítky</span>
+                </h1>
+            </div>
+
+            <!-- Form -->
+            <div class="space-y-4">
+                
+                <!-- Text Section -->
+                <div class="bg-white/50 p-3 rounded-lg border border-slate-200 relative">
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2" data-i18n="section_text">Text & Písmo</label>
+                    
+                    <!-- Warning Message Area -->
+                    <div id="boundsWarning" class="hidden absolute top-2 right-2 text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded border border-red-200 animate-pulse" data-i18n="warn_bounds">
+                        Mimo štítek!
+                    </div>
+
+                    <textarea id="inputText" rows="2" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition mb-3 resize-none" placeholder="Zadejte text..." data-i18n-placeholder="placeholder_text" data-i18n-value="default_text">Příliš žluťoučký kůň</textarea>
+                    
+                    <!-- Font Selection -->
+                    <div class="mb-3">
+                        <label class="block text-xs font-medium text-slate-600 mb-1" data-i18n="label_font_type">Typ písma</label>
+                        <div class="flex gap-2 mb-2">
+                            <select id="fontSelect" class="flex-grow px-2 py-1 text-xs border border-slate-300 rounded focus:ring-indigo-500 outline-none bg-white">
+                                <option value="dejavu" data-i18n="opt_standard">Standard (DejaVu Sans)</option>
+                                <option value="adwaita" data-i18n="opt_mono">Mono (Adwaita)</option>
+                                <option value="liberationsans" data-i18n="opt_sans">Sans (LiberationSans)</option>
+                                <option value="afternoon" data-i18n="opt_cursive">Psací (Afternoon)</option>
+                                <option value="custom" data-i18n="opt_custom">-- Nahrát vlastní (.ttf) --</option>
+                            </select>
+                            
+                            <!-- Style Buttons -->
+                            <button id="btnBold" class="style-btn font-bold" title="Tučné" data-i18n-title="title_bold">B</button>
+                            <button id="btnItalic" class="style-btn italic" title="Kurzíva" data-i18n-title="title_italic">I</button>
+                        </div>
+                        
+                        <div id="customFontGroup" class="hidden">
+                            <label class="flex items-center justify-center w-full px-2 py-2 bg-white border border-dashed border-slate-300 rounded-lg cursor-pointer hover:bg-slate-50 transition">
+                                <span class="text-xs text-slate-500 truncate" id="fileNameLabel" data-i18n="label_file">Vybrat soubor .ttf</span>
+                                <input type="file" id="fontFileInput" accept=".ttf" class="hidden">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1" data-i18n="label_font_size">Velikost písma</label>
+                            <input type="range" id="textSize" value="0.7" min="0.1" max="2.0" step="0.05" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                         <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1" data-i18n="label_text_height">Výška textu (mm)</label>
+                            <input type="number" id="textThickness" value="1" step="0.2" min="0.2" class="w-full px-2 py-1 text-sm border border-slate-300 rounded focus:ring-indigo-500 outline-none">
+                            <p class="text-[10px] text-slate-400 mt-0.5" data-i18n="hint_border_height">*určuje i výšku okraje</p>
+                        </div>
+                    </div>
+
+                    <!-- Alignment Controls -->
+                    <div class="mb-3">
+                        <label class="block text-xs font-medium text-slate-600 mb-1" data-i18n="label_alignment">Zarovnání</label>
+                        <div class="flex gap-2">
+                            <div class="flex gap-1 flex-1" id="alignH-container">
+                                <button type="button" data-value="left" class="align-btn flex-1 flex justify-center" title="Zarovnat vlevo" data-i18n-title="title_left"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="21" y1="6" x2="3" y2="6"></line><line x1="15" y1="12" x2="3" y2="12"></line><line x1="17" y1="18" x2="3" y2="18"></line></svg></button>
+                                <button type="button" data-value="center" class="align-btn flex-1 flex justify-center active" title="Střed" data-i18n-title="title_center"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="21" y1="6" x2="3" y2="6"></line><line x1="17" y1="12" x2="7" y2="12"></line><line x1="19" y1="18" x2="5" y2="18"></line></svg></button>
+                                <button type="button" data-value="right" class="align-btn flex-1 flex justify-center" title="Zarovnat vpravo" data-i18n-title="title_right"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="12" x2="9" y2="12"></line><line x1="21" y1="18" x2="7" y2="18"></line></svg></button>
+                            </div>
+                            <div class="flex gap-1 flex-1" id="alignV-container">
+                                <button type="button" data-value="top" class="align-btn flex-1 flex justify-center" title="Nahoru" data-i18n-title="title_top"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 5h14"/><path d="M12 19V8"/><path d="M16 11l-4-4-4 4"/></svg></button>
+                                <button type="button" data-value="center" class="align-btn flex-1 flex justify-center active" title="Střed" data-i18n-title="title_center"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg></button>
+                                <button type="button" data-value="bottom" class="align-btn flex-1 flex justify-center" title="Dolů" data-i18n-title="title_bottom"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 19h14"/><path d="M12 5v11"/><path d="M16 13l-4 4-4-4"/></svg></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Padding Control -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block text-xs font-medium text-slate-600" data-i18n="label_padding">Odsazení textu (mm)</label>
+                            <button id="lockPaddingBtn" class="icon-btn active" title="Zamknout/Odemknout poměr">
+                                <svg id="lockIcon" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                                <svg id="unlockIcon" class="w-3 h-3 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="relative">
+                                <span class="absolute left-1.5 top-1.5 text-[9px] text-slate-400 font-bold" data-i18n="lbl_top">T</span>
+                                <input type="number" id="padTop" value="2" min="0" step="0.5" class="w-full pl-5 px-2 py-1 text-xs border border-slate-300 rounded focus:ring-indigo-500 outline-none text-right">
+                            </div>
+                            <div class="relative">
+                                <span class="absolute left-1.5 top-1.5 text-[9px] text-slate-400 font-bold" data-i18n="lbl_right">R</span>
+                                <input type="number" id="padRight" value="2" min="0" step="0.5" class="w-full pl-5 px-2 py-1 text-xs border border-slate-300 rounded focus:ring-indigo-500 outline-none text-right">
+                            </div>
+                            <div class="relative">
+                                <span class="absolute left-1.5 top-1.5 text-[9px] text-slate-400 font-bold" data-i18n="lbl_bottom">B</span>
+                                <input type="number" id="padBottom" value="2" min="0" step="0.5" class="w-full pl-5 px-2 py-1 text-xs border border-slate-300 rounded focus:ring-indigo-500 outline-none text-right">
+                            </div>
+                            <div class="relative">
+                                <span class="absolute left-1.5 top-1.5 text-[9px] text-slate-400 font-bold" data-i18n="lbl_left">L</span>
+                                <input type="number" id="padLeft" value="2" min="0" step="0.5" class="w-full pl-5 px-2 py-1 text-xs border border-slate-300 rounded focus:ring-indigo-500 outline-none text-right">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dimensions Section -->
+                <div class="bg-white/50 p-3 rounded-lg border border-slate-200">
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2" data-i18n="label_dimensions">Rozměry Štítku</label>
+                    <div class="grid grid-cols-2 gap-3 mb-2">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1" data-i18n="label_width">Šířka (mm)</label>
+                            <input type="number" id="tagWidth" value="130" min="20" max="300" class="w-full px-2 py-1 text-sm border border-slate-300 rounded focus:ring-indigo-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1" data-i18n="label_height">Výška (mm)</label>
+                            <input type="number" id="tagHeight" value="30" min="10" max="300" class="w-full px-2 py-1 text-sm border border-slate-300 rounded focus:ring-indigo-500 outline-none">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-2">
+                         <label class="block text-xs font-medium text-slate-600 mb-1" data-i18n="label_radius">Radius rohů (mm)</label>
+                         <div class="flex items-center gap-2">
+                            <input type="range" id="cornerRadius" value="2" min="0" max="50" step="0.5" class="flex-grow h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                            <span id="cornerRadiusVal" class="text-xs text-slate-500 w-8 text-right">2</span>
+                         </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1" data-i18n="label_base_thick">Tl. základny (mm)</label>
+                        <input type="number" id="baseThickness" value="1" step="0.5" min="0.5" class="w-full px-2 py-1 text-sm border border-slate-300 rounded focus:ring-indigo-500 outline-none">
+                    </div>
+                </div>
+
+                <!-- Features Section -->
+                <div class="bg-white/50 p-3 rounded-lg border border-slate-200">
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2" data-i18n="label_extras">Doplňky</label>
+                    <div class="flex items-center mb-2">
+                        <input id="hasBorder" type="checkbox" checked class="w-4 h-4 text-indigo-600 bg-gray-100 border-gray-300 rounded focus:ring-indigo-500">
+                        <label for="hasBorder" class="ms-2 text-sm font-medium text-gray-900 select-none cursor-pointer" data-i18n="label_add_border">Přidat okraj</label>
+                   </div>
+                   <!-- Removed 'hidden' logic via CSS opacity trick, ensuring it's visible by default if checked -->
+                   <div id="borderSettings" class="grid grid-cols-1 gap-3 pl-6 transition-all duration-300 overflow-hidden max-h-[100px] opacity-100">
+                       <div>
+                           <label class="block text-[10px] font-medium text-slate-500 mb-1" data-i18n="label_border_width">Šířka okraje (mm)</label>
+                           <input type="number" id="borderWidth" value="1.5" step="0.1" min="0.5" class="w-full px-2 py-1 text-xs border border-slate-300 rounded focus:ring-indigo-500 outline-none">
+                       </div>
+                   </div>
+                </div>
+
+            </div>
+
+            <div class="mt-auto pt-4">
+                <button id="downloadBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transform transition hover:-translate-y-0.5 active:translate-y-0 flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    <span data-i18n="btn_download">Stáhnout STL</span>
+                </button>
+                <div id="statusMsg" class="text-center text-xs text-slate-500 mt-2 h-4"></div>
+            </div>
+        </div>
+
+        <!-- 3D Canvas -->
+        <div id="canvas-container" class="relative order-1 md:order-2 flex-grow h-64 md:h-full cursor-move">
+            <div class="absolute top-4 right-4 bg-white/80 backdrop-blur px-3 py-1 rounded-full text-xs text-slate-600 pointer-events-none select-none z-10 border border-slate-200">
+                Levé tl.: Rotace | Pravé tl.: Posun | Kolečko: Zoom
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Logic -->
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+        import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+        import { STLExporter } from 'three/addons/exporters/STLExporter.js';
+        import { TTFLoader } from 'three/addons/loaders/TTFLoader.js';
+        import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
+
+        // Translation Dictionary
+        const translations = {
+            cs: {
+                title: "3D Štítky",
+                section_text: "Text & Písmo",
+                warn_bounds: "Mimo štítek!",
+                placeholder_text: "Zadejte text...",
+                default_text: "Příliš žluťoučký kůň",
+                label_font_type: "Typ písma",
+                opt_standard: "Standard (DejaVu Sans)",
+                opt_modern: "Mono (Adwaita)",
+                opt_pixel: "Sans (Liberation Sans)",
+                opt_cursive: "Script (Afternoon)",
+                opt_custom: "-- Nahrát vlastní (.ttf) --",
+                label_file: "Vybrat soubor .ttf",
+                label_font_size: "Velikost písma",
+                label_text_height: "Výška textu (mm)",
+                hint_border_height: "*určuje i výšku okraje",
+                label_alignment: "Zarovnání",
+                title_left: "Zarovnat vlevo",
+                title_center: "Střed",
+                title_right: "Zarovnat vpravo",
+                title_top: "Nahoru",
+                title_bottom: "Dolů",
+                title_bold: "Tučné",
+                title_italic: "Kurzíva",
+                label_padding: "Odsazení textu (mm)",
+                lbl_top: "N",
+                lbl_right: "P",
+                lbl_bottom: "D",
+                lbl_left: "L",
+                label_dimensions: "Rozměry Štítku",
+                label_width: "Šířka (mm)",
+                label_height: "Výška (mm)",
+                label_radius: "Radius rohů (mm)",
+                label_base_thick: "Tl. základny (mm)",
+                label_extras: "Doplňky",
+                label_add_border: "Přidat okraj",
+                label_border_width: "Šířka okraje (mm)",
+                btn_download: "Stáhnout STL",
+                status_loading: "Načítám font...",
+                status_error_download: "Chyba stahování fontu.",
+                status_processing: "Zpracovávám font...",
+                status_error_file: "Neplatný soubor fontu.",
+                msg_downloaded: "Staženo!"
+            },
+            en: {
+                title: "3D Labels",
+                section_text: "Text & Font",
+                warn_bounds: "Out of label!",
+                placeholder_text: "Enter text...",
+                default_text: "The quick brown fox",
+                label_font_type: "Font Type",
+                opt_standard: "Standard (DejaVu Sans)",
+                opt_modern: "Mono (Adwaita)",
+                opt_pixel: "Sans (Liberation Sans)",
+                opt_cursive: "Script (Afternoon)",
+                opt_custom: "-- Upload Custom (.ttf) --",
+                label_file: "Select .ttf file",
+                label_font_size: "Font Size",
+                label_text_height: "Text Height (mm)",
+                hint_border_height: "*also determines border height",
+                label_alignment: "Alignment",
+                title_left: "Align Left",
+                title_center: "Center",
+                title_right: "Align Right",
+                title_top: "Top",
+                title_bottom: "Bottom",
+                title_bold: "Bold",
+                title_italic: "Italic",
+                label_padding: "Text Padding (mm)",
+                lbl_top: "T",
+                lbl_right: "R",
+                lbl_bottom: "B",
+                lbl_left: "L",
+                label_dimensions: "Tag Dimensions",
+                label_width: "Width (mm)",
+                label_height: "Height (mm)",
+                label_radius: "Corner Radius (mm)",
+                label_base_thick: "Base Thickness (mm)",
+                label_extras: "Extras",
+                label_add_border: "Add Border",
+                label_border_width: "Border Width (mm)",
+                btn_download: "Download STL",
+                status_loading: "Loading font...",
+                status_error_download: "Error downloading font.",
+                status_processing: "Processing font...",
+                status_error_file: "Invalid font file.",
+                msg_downloaded: "Downloaded!"
+            }
+        };
+
+        let currentLang = 'en';
+
+        // Global variables
+        let scene, camera, renderer, controls;
+        let mainMesh = null; 
+        let boundsHelper = null; 
+        let loadedFont = null;
+        
+        // Font Configuration with Variants
+        const fontConfig = {
+            'dejavu': {
+                'regular': './fonts/DejaVuSans.ttf',
+                'bold': './fonts/DejaVuSans-Bold.ttf',
+                'italic': './fonts/DejaVuSans-Oblique.ttf',
+                'bold-italic': './fonts/DejaVuSans-BoldOblique.ttf',
+            },
+            'adwaita': {
+                'regular': './fonts/AdwaitaMono-Regular.ttf',
+                'bold': './fonts/AdwaitaMono-Bold.ttf',
+                'italic': './fonts/AdwaitaMono-Italic.ttf',
+                'bold-italic': './fonts/AdwaitaMono-BoldItalic.ttf',
+            },
+            'liberationsans': {
+                'regular': './fonts/LiberationSans-Regular.ttf',
+                'bold': './fonts/LiberationSans-Bold.ttf',
+                'italic': './fonts/LiberationSans-Italic.ttf',
+                'bold-italic': './fonts/LiberationSans-BoldItalic.ttf',
+            },
+            'afternoon': {
+                'regular': './fonts/Afternoon in Stereo.ttf'
+            },
+            'custom': {}
+        };
+
+        let currentAlignH = 'center';
+        let currentAlignV = 'center';
+        let paddingLocked = true; 
+        let isBold = false;
+        let isItalic = false;
+
+        const inputs = {
+            text: document.getElementById('inputText'),
+            width: document.getElementById('tagWidth'),
+            height: document.getElementById('tagHeight'),
+            cornerRadius: document.getElementById('cornerRadius'),
+            baseThick: document.getElementById('baseThickness'),
+            textThick: document.getElementById('textThickness'),
+            textSize: document.getElementById('textSize'),
+            hasBorder: document.getElementById('hasBorder'),
+            borderWidth: document.getElementById('borderWidth'),
+            fontSelect: document.getElementById('fontSelect'),
+            customFontInput: document.getElementById('fontFileInput'),
+            btnBold: document.getElementById('btnBold'),
+            btnItalic: document.getElementById('btnItalic'),
+            // Padding inputs
+            padTop: document.getElementById('padTop'),
+            padRight: document.getElementById('padRight'),
+            padBottom: document.getElementById('padBottom'),
+            padLeft: document.getElementById('padLeft'),
+        };
+        const cornerRadiusVal = document.getElementById('cornerRadiusVal');
+        const borderSettings = document.getElementById('borderSettings');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const statusMsg = document.getElementById('statusMsg');
+        const container = document.getElementById('canvas-container');
+        const customFontGroup = document.getElementById('customFontGroup');
+        const fileNameLabel = document.getElementById('fileNameLabel');
+        const lockPaddingBtn = document.getElementById('lockPaddingBtn');
+        const lockIcon = document.getElementById('lockIcon');
+        const unlockIcon = document.getElementById('unlockIcon');
+        const boundsWarning = document.getElementById('boundsWarning');
+
+        init();
+
+        function init() {
+            // Language Detection
+            const userLang = navigator.language || navigator.userLanguage;
+            currentLang = userLang.startsWith('cs') ? 'cs' : 'en';
+            applyLanguage(currentLang);
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xf0f4f8);
+            scene.fog = new THREE.Fog(0xf0f4f8, 50, 300);
+
+            camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.set(0, 100, 100);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2;
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(50, 80, 50);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            scene.add(dirLight);
+
+            const gridHelper = new THREE.GridHelper(200, 20, 0xcbd5e1, 0xe2e8f0);
+            gridHelper.position.y = -0.01;
+            scene.add(gridHelper);
+
+            // Initial Load (Default font is regular, override to bold if preferred or start standard)
+            updateFont();
+
+            window.addEventListener('resize', onWindowResize);
+            
+            inputs.hasBorder.addEventListener('change', () => {
+                if (inputs.hasBorder.checked) {
+                    borderSettings.style.maxHeight = '100px';
+                    borderSettings.style.opacity = '1';
+                } else {
+                    borderSettings.style.maxHeight = '0px';
+                    borderSettings.style.opacity = '0.5';
+                }
+                generateTag();
+            });
+            
+            // Font Logic
+            inputs.fontSelect.addEventListener('change', (e) => {
+                const val = e.target.value;
+                if (val === 'custom') {
+                    customFontGroup.classList.remove('hidden');
+                    disableStyleButtons(true);
+                } else {
+                    customFontGroup.classList.add('hidden');
+                    updateFont();
+                }
+            });
+
+            // Bold / Italic Toggles
+            inputs.btnBold.addEventListener('click', () => {
+                isBold = !isBold;
+                updateStyleButtonsUI();
+                updateFont();
+            });
+            inputs.btnItalic.addEventListener('click', () => {
+                isItalic = !isItalic;
+                updateStyleButtonsUI();
+                updateFont();
+            });
+
+            inputs.customFontInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    fileNameLabel.textContent = file.name;
+                    loadCustomFont(file);
+                }
+            });
+            
+            inputs.cornerRadius.addEventListener('input', () => {
+                cornerRadiusVal.innerText = inputs.cornerRadius.value;
+                generateTag();
+            });
+
+            setupAlignmentButtons('alignH-container', (val) => { currentAlignH = val; generateTag(); });
+            setupAlignmentButtons('alignV-container', (val) => { currentAlignV = val; generateTag(); });
+
+            lockPaddingBtn.addEventListener('click', () => {
+                paddingLocked = !paddingLocked;
+                if (paddingLocked) {
+                    lockPaddingBtn.classList.add('active');
+                    lockIcon.classList.remove('hidden');
+                    unlockIcon.classList.add('hidden');
+                    const val = inputs.padTop.value;
+                    inputs.padRight.value = val;
+                    inputs.padBottom.value = val;
+                    inputs.padLeft.value = val;
+                    generateTag();
+                } else {
+                    lockPaddingBtn.classList.remove('active');
+                    lockIcon.classList.add('hidden');
+                    unlockIcon.classList.remove('hidden');
+                }
+            });
+
+            Object.values(inputs).forEach(input => {
+                if (input && input.tagName !== 'BUTTON' && input !== inputs.fontSelect && input !== inputs.customFontInput) {
+                    input.addEventListener('input', (e) => {
+                        if (paddingLocked && [inputs.padTop, inputs.padRight, inputs.padBottom, inputs.padLeft].includes(input)) {
+                            const val = e.target.value;
+                            inputs.padTop.value = val;
+                            inputs.padRight.value = val;
+                            inputs.padBottom.value = val;
+                            inputs.padLeft.value = val;
+                        }
+                        generateTag();
+                    });
+                }
+            });
+
+            downloadBtn.addEventListener('click', exportSTL);
+        }
+
+        function applyLanguage(lang) {
+            const t = translations[lang];
+            
+            // Text Content
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (t[key]) el.innerText = t[key];
+            });
+
+            // Titles (Tooltips)
+            document.querySelectorAll('[data-i18n-title]').forEach(el => {
+                const key = el.getAttribute('data-i18n-title');
+                if (t[key]) el.title = t[key];
+            });
+
+            // Placeholders
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (t[key]) el.placeholder = t[key];
+            });
+            
+            // Default Values (Only if user hasn't touched it)
+            // Ideally we'd check dirty state, but for simplicity on load:
+            const textArea = document.getElementById('inputText');
+            const defaultKey = textArea.getAttribute('data-i18n-value');
+            if (t[defaultKey]) textArea.value = t[defaultKey];
+        }
+
+        function setupAlignmentButtons(containerId, callback) {
+            const container = document.getElementById(containerId);
+            const btns = container.querySelectorAll('button');
+            btns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    btns.forEach(b => b.classList.remove('active', 'bg-indigo-100', 'border-indigo-500', 'text-indigo-700'));
+                    btn.classList.add('active', 'bg-indigo-100', 'border-indigo-500', 'text-indigo-700');
+                    callback(btn.dataset.value);
+                });
+            });
+        }
+
+        function updateStyleButtonsUI() {
+            if (isBold) inputs.btnBold.classList.add('active');
+            else inputs.btnBold.classList.remove('active');
+            
+            if (isItalic) inputs.btnItalic.classList.add('active');
+            else inputs.btnItalic.classList.remove('active');
+        }
+
+        function disableStyleButtons(disabled) {
+            inputs.btnBold.disabled = disabled;
+            inputs.btnItalic.disabled = disabled;
+            if (disabled) {
+                isBold = false;
+                isItalic = false;
+                updateStyleButtonsUI();
+            }
+        }
+
+        function updateFont() {
+            const family = inputs.fontSelect.value;
+            if (family === 'custom') return;
+
+            const config = fontConfig[family];
+            if (!config) return;
+
+            // Determine specific URL based on state
+            let url = config.regular;
+            let supportsBold = !!config.bold;
+            let supportsItalic = !!config.italic;
+
+            // Enable/Disable buttons based on font capabilities
+            inputs.btnBold.disabled = !supportsBold;
+            inputs.btnItalic.disabled = !supportsItalic;
+            
+            // Logic to pick correct file
+            if (isBold && isItalic && config['bold-italic']) {
+                url = config['bold-italic'];
+            } else if (isBold && config.bold) {
+                url = config.bold;
+            } else if (isItalic && config.italic) {
+                url = config.italic;
+            }
+
+            loadFontFromUrl(url);
+        }
+
+        function loadFontFromUrl(url) {
+            downloadBtn.disabled = true;
+            statusMsg.textContent = translations[currentLang].status_loading;
+            const loader = new TTFLoader();
+            loader.load(url, function (json) {
+                const font = new FontLoader().parse(json);
+                loadedFont = font;
+                downloadBtn.disabled = false;
+                statusMsg.textContent = "";
+                generateTag();
+            }, undefined, function (err) {
+                statusMsg.textContent = translations[currentLang].status_error_download;
+                console.error(err);
+            });
+        }
+
+        function loadCustomFont(file) {
+            downloadBtn.disabled = true;
+            statusMsg.textContent = translations[currentLang].status_processing;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const arrayBuffer = e.target.result;
+                    const loader = new TTFLoader();
+                    const json = loader.parse(arrayBuffer);
+                    const font = new FontLoader().parse(json);
+                    loadedFont = font;
+                    disableStyleButtons(true); // Custom font usually doesn't have variants here
+                    downloadBtn.disabled = false;
+                    statusMsg.textContent = "";
+                    generateTag();
+                } catch (err) {
+                    statusMsg.textContent = translations[currentLang].status_error_file;
+                    console.error(err);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function createTagShape(width, height, radius) {
+            const shape = new THREE.Shape();
+            const w = width / 2;
+            const h = height / 2;
+            const r = Math.min(radius, w, h);
+
+            shape.moveTo(-w, h - r);
+            shape.lineTo(-w, -h + r);
+            shape.quadraticCurveTo(-w, -h, -w + r, -h);
+            shape.lineTo(w - r, -h);
+            shape.quadraticCurveTo(w, -h, w, -h + r);
+            shape.lineTo(w, h - r);
+            shape.quadraticCurveTo(w, h, w - r, h);
+            shape.lineTo(-w + r, h);
+            shape.quadraticCurveTo(-w, h, -w, h - r);
+
+            return shape;
+        }
+
+        function getTextWidth(text, font, size) {
+            const shapes = font.generateShapes(text, size);
+            let width = 0;
+            if (shapes.length > 0) {
+                 const geometry = new THREE.ShapeGeometry(shapes);
+                 geometry.computeBoundingBox();
+                 width = geometry.boundingBox.max.x - geometry.boundingBox.min.x;
+                 geometry.dispose();
+            }
+            return width;
+        }
+
+        function generateTag() {
+            if (!loadedFont) return;
+
+            if (mainMesh) {
+                scene.remove(mainMesh);
+                mainMesh.traverse((child) => {
+                    if (child.isMesh) {
+                        if (child.geometry) child.geometry.dispose();
+                        if (child.material) {
+                            if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+                            else child.material.dispose();
+                        }
+                    }
+                });
+                mainMesh = null;
+            }
+            if (boundsHelper) {
+                scene.remove(boundsHelper);
+                boundsHelper = null;
+            }
+            boundsWarning.classList.add('hidden');
+
+            const textString = inputs.text.value || " ";
+            const width = parseFloat(inputs.width.value);
+            const height = parseFloat(inputs.height.value);
+
+            // Omezení radiusu rohů (max polovina menšího rozměru)
+            const maxRadius = Math.min(width, height) / 2;
+            inputs.cornerRadius.max = maxRadius;
+            
+            // Pokud aktuální hodnota přesahuje nové maximum, ořízneme ji
+            if (parseFloat(inputs.cornerRadius.value) > maxRadius) {
+                inputs.cornerRadius.value = maxRadius;
+                cornerRadiusVal.innerText = maxRadius; // Aktualizace čísla vedle posuvníku
+            }
+
+            const cornerR = parseFloat(inputs.cornerRadius.value);
+            const baseThick = parseFloat(inputs.baseThick.value);
+            const textThick = parseFloat(inputs.textThick.value);
+            const fontScale = parseFloat(inputs.textSize.value);
+            const fontSize = 10 * fontScale;
+            
+            const hasBorder = inputs.hasBorder.checked;
+            const borderW = parseFloat(inputs.borderWidth.value);
+            const borderH = textThick;
+
+            const padTop = parseFloat(inputs.padTop.value);
+            const padRight = parseFloat(inputs.padRight.value);
+            const padBottom = parseFloat(inputs.padBottom.value);
+            const padLeft = parseFloat(inputs.padLeft.value);
+
+            // 1. Base Geometry
+            const baseShape = createTagShape(width, height, cornerR);
+            const baseSettings = { steps: 1, depth: baseThick, bevelEnabled: false };
+            const baseGeometry = new THREE.ExtrudeGeometry(baseShape, baseSettings);
+            baseGeometry.rotateX(Math.PI / 2);
+            baseGeometry.translate(0, baseThick, 0);
+
+            // 2. Border Geometry
+            let borderGeometry = null;
+            if (hasBorder) {
+                const borderShape = new THREE.Shape();
+                const w = width / 2;
+                const h = height / 2;
+                const r = Math.min(cornerR, w, h);
+
+                borderShape.moveTo(-w, h - r);
+                borderShape.lineTo(-w, -h + r);
+                borderShape.quadraticCurveTo(-w, -h, -w + r, -h);
+                borderShape.lineTo(w - r, -h);
+                borderShape.quadraticCurveTo(w, -h, w, -h + r);
+                borderShape.lineTo(w, h - r);
+                borderShape.quadraticCurveTo(w, h, w - r, h);
+                borderShape.lineTo(-w + r, h);
+                borderShape.quadraticCurveTo(-w, h, -w, h - r);
+
+                const innerW = w - borderW;
+                const innerH = h - borderW;
+                
+                if (innerW > 0 && innerH > 0) {
+                    const innerR = Math.max(0, r - borderW);
+                    const innerPath = new THREE.Path();
+                    
+                    // Clockwise for hole
+                    innerPath.moveTo(-innerW + innerR, innerH); 
+                    innerPath.lineTo(innerW - innerR, innerH);
+                    innerPath.quadraticCurveTo(innerW, innerH, innerW, innerH - innerR);
+                    innerPath.lineTo(innerW, -innerH + innerR);
+                    innerPath.quadraticCurveTo(innerW, -innerH, innerW - innerR, -innerH);
+                    innerPath.lineTo(-innerW + innerR, -innerH);
+                    innerPath.quadraticCurveTo(-innerW, -innerH, -innerW, -innerH + innerR);
+                    innerPath.lineTo(-innerW, innerH - innerR);
+                    innerPath.quadraticCurveTo(-innerW, innerH, -innerW + innerR, innerH);
+
+                    borderShape.holes.push(innerPath);
+                }
+
+                const borderSettings = { steps: 1, depth: borderH, bevelEnabled: false };
+                borderGeometry = new THREE.ExtrudeGeometry(borderShape, borderSettings);
+                borderGeometry.rotateX(Math.PI / 2);
+                borderGeometry.translate(0, baseThick + borderH, 0); 
+            }
+
+            // 3. Text Wrapping
+            const maxTextWidth = width - (padLeft + padRight);
+            
+            const words = textString.split(' ');
+            const lines = [];
+            let currentLine = words[0];
+
+            for (let i = 1; i < words.length; i++) {
+                const word = words[i];
+                const testLine = currentLine + " " + word;
+                const testWidth = getTextWidth(testLine, loadedFont, fontSize);
+                
+                if (testWidth < maxTextWidth) {
+                    currentLine = testLine;
+                } else {
+                    lines.push(currentLine);
+                    currentLine = word;
+                }
+            }
+            lines.push(currentLine);
+
+            // 4. Generate Text Geometries
+            const textGeometries = [];
+            const lineHeight = fontSize * 1.2;
+            
+            lines.forEach((lineText, index) => {
+                if (!lineText) return;
+
+                const textGeo = new TextGeometry(lineText, {
+                    font: loadedFont,
+                    size: fontSize,
+                    height: textThick,
+                    curveSegments: 4,
+                    bevelEnabled: false
+                });
+
+                textGeo.computeBoundingBox();
+                const lineWidth = textGeo.boundingBox.max.x - textGeo.boundingBox.min.x;
+                
+                let xPos = 0;
+                if (currentAlignH === 'left') {
+                    xPos = -width / 2 + padLeft;
+                } else if (currentAlignH === 'right') {
+                    xPos = width / 2 - padRight - lineWidth;
+                } else {
+                    const safeCenter = (padLeft - padRight) / 2;
+                    xPos = safeCenter - (lineWidth / 2);
+                }
+
+                const rowOffset = index * lineHeight;
+                
+                textGeo.rotateX(-Math.PI / 2); 
+                textGeo.translate(-textGeo.boundingBox.min.x, 0, -textGeo.boundingBox.min.z);
+                textGeo.translate(xPos, baseThick, rowOffset);
+                
+                textGeometries.push(textGeo);
+            });
+
+            mainMesh = new THREE.Group();
+
+            const baseMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x2563eb, 
+                roughness: 0.5,
+                metalness: 0.1
+            });
+            const textMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xe2e8f0, 
+                roughness: 0.4,
+                metalness: 0.1
+            });
+
+            const baseMesh = new THREE.Mesh(baseGeometry, baseMaterial);
+            baseMesh.castShadow = true;
+            baseMesh.receiveShadow = true;
+            mainMesh.add(baseMesh);
+
+            if (borderGeometry) {
+                const borderMesh = new THREE.Mesh(borderGeometry, textMaterial);
+                borderMesh.castShadow = true;
+                borderMesh.receiveShadow = true;
+                mainMesh.add(borderMesh);
+            }
+
+            if (textGeometries.length > 0) {
+                const mergedText = BufferGeometryUtils.mergeGeometries(textGeometries);
+                
+                mergedText.computeBoundingBox();
+                let zShift = 0;
+                
+                if (currentAlignV === 'top') {
+                     const targetTop = -height / 2 + padTop;
+                     zShift = targetTop - mergedText.boundingBox.min.z;
+                } else if (currentAlignV === 'bottom') {
+                     const targetBottom = height / 2 - padBottom;
+                     zShift = targetBottom - mergedText.boundingBox.max.z;
+                } else {
+                     const safeCenterZ = (padTop - padBottom) / 2;
+                     const textCenterZ = (mergedText.boundingBox.max.z + mergedText.boundingBox.min.z) / 2;
+                     zShift = safeCenterZ - textCenterZ;
+                }
+                mergedText.translate(0, 0, zShift);
+
+                const textMesh = new THREE.Mesh(mergedText, textMaterial);
+                textMesh.castShadow = true;
+                textMesh.receiveShadow = true;
+                mainMesh.add(textMesh);
+
+                mergedText.computeBoundingBox();
+                const box = mergedText.boundingBox;
+                const wHalf = width / 2;
+                const hHalf = height / 2;
+                const eps = 0.01;
+                
+                const isOutOfBounds = 
+                    box.min.x < -wHalf - eps || 
+                    box.max.x > wHalf + eps || 
+                    box.min.z < -hHalf - eps || 
+                    box.max.z > hHalf + eps;
+
+                if (isOutOfBounds) {
+                    boundsWarning.classList.remove('hidden');
+                    boundsHelper = new THREE.BoxHelper(textMesh, 0xff0000);
+                    scene.add(boundsHelper);
+                }
+            }
+
+            scene.add(mainMesh);
+            render();
+        }
+
+        function exportSTL() {
+            if (!mainMesh) return;
+            const exporter = new STLExporter();
+            
+            // ROTATE FOR EXPORT
+            // Standard slicers expect Z-up. 
+            // In Three.js, our label is lying flat on XZ plane (which is standard "floor" in Three.js).
+            // Its "up" vector is Y.
+            // If we export as is, it will be "standing up" in the slicer (because Slicer Z = ThreeJS Y in direct mapping usually).
+            // To make it lie flat on Slicer bed (XY), we need to rotate it so its face points towards Z.
+            // Rotating X by 90 degrees (PI/2) does exactly this.
+            
+            mainMesh.rotation.x = Math.PI / 2;
+            mainMesh.updateMatrixWorld(); // Apply rotation
+            
+            const result = exporter.parse(mainMesh, { binary: true });
+            
+            // ROTATE BACK
+            mainMesh.rotation.x = 0;
+            mainMesh.updateMatrixWorld();
+            
+            const blob = new Blob([result], { type: 'application/octet-stream' });
+            const link = document.createElement('a');
+            
+            const rawText = inputs.text.value || "Untitled";
+            const normalized = rawText.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const words = normalized.trim().split(/\s+/).slice(0, 3).join('_');
+            const cleanName = words.replace(/[^a-zA-Z0-9_]/g, '');
+            const fileName = `Label_${cleanName || 'Untitled'}.stl`;
+
+            link.href = URL.createObjectURL(blob);
+            link.download = fileName;
+            link.click();
+            
+            // Show feedback using translation
+            const originalText = downloadBtn.querySelector('span').innerText;
+            downloadBtn.querySelector('span').innerText = translations[currentLang].msg_downloaded;
+            setTimeout(() => {
+                 downloadBtn.querySelector('span').innerText = originalText;
+            }, 2000);
+        }
+
+        function onWindowResize() {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            render();
+        }
+
+        function render() {
+            renderer.render(scene, camera);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            render();
+        }
+        animate();
+
+    </script>
+</body>
+</html>
