@@ -4,10 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Generátor 3D Štítků</title>
+    
+    <!-- ONLINE: Použití online verze Tailwind CSS 
+    <script src="https://cdn.tailwindcss.com"></script> -->
+    
+    <!-- LOC: Lokální verze Tailwind (odkomentujte pro offline použití) -->
     <script src="./libs/tailwindcss.js"></script>
+    
+
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        #canvas-container { width: 100%; height: 100vh; background-color: #f0f0f0; }
+        /* Canvas container styles handled by Tailwind classes now */
+        
         .control-panel {
             backdrop-filter: blur(10px);
             background-color: rgba(255, 255, 255, 0.95);
@@ -61,23 +69,36 @@
             cursor: pointer;
         }
     </style>
-    <!-- Import Map for Three.js modules -->
+
+    <!-- ONLINE: Import Map pro online Three.js moduly 
     <script type="importmap">
-    {
-        "imports": {
-            "three": "./libs/build/three.module.js",
-            "three/addons/": "./libs/examples/jsm/"
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
         }
-    }
     </script>
+    -->
+
+    <!-- LOC: Lokální Import Map (odkomentujte pro offline použití) -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "./libs/build/three.module.js",
+                "three/addons/": "./libs/examples/jsm/"
+            }
+        }
+    </script>
+    
 </head>
 <body class="text-slate-800">
 
     <!-- Main Layout -->
-    <div class="relative w-full h-screen flex flex-col md:flex-row">
+    <div class="relative w-full h-screen flex flex-col md:flex-row overflow-hidden">
         
         <!-- Control Panel -->
-        <div class="control-panel w-full md:w-80 h-auto md:h-full absolute md:relative z-10 border-r border-slate-200 shadow-xl overflow-y-auto p-5 flex flex-col gap-4 order-2 md:order-1">
+        <div class="control-panel w-full md:w-[360px] shrink-0 h-[60%] md:h-full relative z-10 border-t md:border-t-0 md:border-r border-slate-200 shadow-xl overflow-y-auto p-5 flex flex-col gap-4 order-2 md:order-1">
             
             <div class="mb-1">
                 <h1 class="text-xl font-bold text-indigo-600 flex items-center gap-2">
@@ -100,17 +121,18 @@
                         Mimo štítek!
                     </div>
 
-                    <textarea id="inputText" rows="2" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition mb-3 resize-none" placeholder="Zadejte text..." data-i18n-placeholder="placeholder_text" data-i18n-value="default_text">My 3D printed label</textarea>
+                    <textarea id="inputText" rows="2" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition mb-3 resize-none" placeholder="Zadejte text..." data-i18n-placeholder="placeholder_text" data-i18n-value="default_text">Příliš žluťoučký kůň</textarea>
                     
                     <!-- Font Selection -->
                     <div class="mb-3">
                         <label class="block text-xs font-medium text-slate-600 mb-1" data-i18n="label_font_type">Typ písma</label>
                         <div class="flex gap-2 mb-2">
                             <select id="fontSelect" class="flex-grow px-2 py-1 text-xs border border-slate-300 rounded focus:ring-indigo-500 outline-none bg-white">
-                                <option value="dejavu" data-i18n="opt_standard">Standard (DejaVu Sans)</option>
-                                <option value="adwaita" data-i18n="opt_mono">Mono (Adwaita)</option>
-                                <option value="liberationsans" data-i18n="opt_sans">Sans (LiberationSans)</option>
-                                <option value="afternoon" data-i18n="opt_cursive">Psací (Afternoon)</option>
+                                <option value="dejavu" data-i18n="opt_dejavu">DejaVu Sans</option>
+                                <option value="liberation" data-i18n="opt_liberation">Liberation Sans (Arimo)</option>
+                                <option value="adwaita" data-i18n="opt_adwaita">Adwaita (Cantarell)</option>
+                                <option value="roboto" data-i18n="opt_roboto">Roboto</option>
+                                <option value="pixel" data-i18n="opt_pixel">VT323 (Pixel)</option>
                                 <option value="custom" data-i18n="opt_custom">-- Nahrát vlastní (.ttf) --</option>
                             </select>
                             
@@ -127,14 +149,17 @@
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div class="flex flex-col gap-3 mb-3">
                         <div>
                             <label class="block text-xs font-medium text-slate-600 mb-1" data-i18n="label_font_size">Velikost písma</label>
-                            <input type="range" id="textSize" value="0.7" min="0.1" max="2.0" step="0.05" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                            <div class="flex items-center gap-2">
+                                <input type="range" id="textSize" value="0.7" min="0.1" max="2.0" step="0.05" class="flex-grow h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                                <span id="textSizeVal" class="text-xs text-slate-500 w-8 text-right">0.7</span>
+                            </div>
                         </div>
                          <div>
                             <label class="block text-xs font-medium text-slate-600 mb-1" data-i18n="label_text_height">Výška textu (mm)</label>
-                            <input type="number" id="textThickness" value="1" step="0.2" min="0.2" class="w-full px-2 py-1 text-sm border border-slate-300 rounded focus:ring-indigo-500 outline-none">
+                            <input type="number" id="textThickness" value="0.6" step="0.2" min="0.2" class="w-full px-2 py-1 text-sm border border-slate-300 rounded focus:ring-indigo-500 outline-none">
                             <p class="text-[10px] text-slate-400 mt-0.5" data-i18n="hint_border_height">*určuje i výšku okraje</p>
                         </div>
                     </div>
@@ -221,7 +246,6 @@
                         <input id="hasBorder" type="checkbox" checked class="w-4 h-4 text-indigo-600 bg-gray-100 border-gray-300 rounded focus:ring-indigo-500">
                         <label for="hasBorder" class="ms-2 text-sm font-medium text-gray-900 select-none cursor-pointer" data-i18n="label_add_border">Přidat okraj</label>
                    </div>
-                   <!-- Removed 'hidden' logic via CSS opacity trick, ensuring it's visible by default if checked -->
                    <div id="borderSettings" class="grid grid-cols-1 gap-3 pl-6 transition-all duration-300 overflow-hidden max-h-[100px] opacity-100">
                        <div>
                            <label class="block text-[10px] font-medium text-slate-500 mb-1" data-i18n="label_border_width">Šířka okraje (mm)</label>
@@ -233,6 +257,23 @@
             </div>
 
             <div class="mt-auto pt-4">
+                <!-- Project Actions -->
+                <div class="flex gap-2 mb-2">
+                    <button id="saveProjectBtn" class="flex-1 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium py-2 px-3 rounded-lg shadow-sm transition-colors text-xs flex justify-center items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                        </svg>
+                        <span data-i18n="btn_save_json">Uložit Projekt</span>
+                    </button>
+                    <button id="loadProjectBtn" class="flex-1 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium py-2 px-3 rounded-lg shadow-sm transition-colors text-xs flex justify-center items-center gap-2">
+                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                        <span data-i18n="btn_load_json">Načíst Projekt</span>
+                    </button>
+                    <input type="file" id="jsonInput" accept=".json" class="hidden">
+                </div>
+
                 <button id="downloadBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transform transition hover:-translate-y-0.5 active:translate-y-0 flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -244,7 +285,7 @@
         </div>
 
         <!-- 3D Canvas -->
-        <div id="canvas-container" class="relative order-1 md:order-2 flex-grow h-64 md:h-full cursor-move">
+        <div id="canvas-container" class="relative order-1 md:order-2 flex-grow h-[40%] md:h-full cursor-move bg-[#f0f0f0]">
             <div class="absolute top-4 right-4 bg-white/80 backdrop-blur px-3 py-1 rounded-full text-xs text-slate-600 pointer-events-none select-none z-10 border border-slate-200">
                 Levé tl.: Rotace | Pravé tl.: Posun | Kolečko: Zoom
             </div>
@@ -268,12 +309,13 @@
                 section_text: "Text & Písmo",
                 warn_bounds: "Mimo štítek!",
                 placeholder_text: "Zadejte text...",
-                default_text: "Můj první štítek",
+                default_text: "Příliš žluťoučký kůň",
                 label_font_type: "Typ písma",
-                opt_standard: "Standard (DejaVu Sans)",
-                opt_modern: "Mono (Adwaita)",
-                opt_pixel: "Sans (Liberation Sans)",
-                opt_cursive: "Script (Afternoon)",
+                opt_dejavu: "DejaVu Sans",
+                opt_liberation: "Liberation Sans (Arimo)",
+                opt_adwaita: "Adwaita (Cantarell)",
+                opt_roboto: "Roboto",
+                opt_pixel: "VT323 (Pixel)",
                 opt_custom: "-- Nahrát vlastní (.ttf) --",
                 label_file: "Vybrat soubor .ttf",
                 label_font_size: "Velikost písma",
@@ -301,6 +343,8 @@
                 label_add_border: "Přidat okraj",
                 label_border_width: "Šířka okraje (mm)",
                 btn_download: "Stáhnout STL",
+                btn_save_json: "Uložit Projekt",
+                btn_load_json: "Načíst Projekt",
                 status_loading: "Načítám font...",
                 status_error_download: "Chyba stahování fontu.",
                 status_processing: "Zpracovávám font...",
@@ -312,12 +356,13 @@
                 section_text: "Text & Font",
                 warn_bounds: "Out of label!",
                 placeholder_text: "Enter text...",
-                default_text: "My first label",
+                default_text: "The quick brown fox",
                 label_font_type: "Font Type",
-                opt_standard: "Standard (DejaVu Sans)",
-                opt_modern: "Mono (Adwaita)",
-                opt_pixel: "Sans (Liberation Sans)",
-                opt_cursive: "Script (Afternoon)",
+                opt_dejavu: "DejaVu Sans",
+                opt_liberation: "Liberation Sans (Arimo)",
+                opt_adwaita: "Adwaita (Cantarell)",
+                opt_roboto: "Roboto",
+                opt_pixel: "VT323 (Pixel)",
                 opt_custom: "-- Upload Custom (.ttf) --",
                 label_file: "Select .ttf file",
                 label_font_size: "Font Size",
@@ -345,6 +390,8 @@
                 label_add_border: "Add Border",
                 label_border_width: "Border Width (mm)",
                 btn_download: "Download STL",
+                btn_save_json: "Save Project",
+                btn_load_json: "Load Project",
                 status_loading: "Loading font...",
                 status_error_download: "Error downloading font.",
                 status_processing: "Processing font...",
@@ -361,7 +408,42 @@
         let boundsHelper = null; 
         let loadedFont = null;
         
-        // Font Configuration with Variants
+        // Font Configuration with Variants (Updated to stable CDNs)
+        // ONLINE VERSION
+        /*
+        const fontConfig = {
+            'dejavu': {
+                'regular': 'https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans.ttf',
+                'bold': 'https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans-Bold.ttf',
+                'italic': 'https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans-Oblique.ttf',
+                'bold-italic': 'https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans-BoldOblique.ttf',
+            },
+            'liberation': {
+                'regular': 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/arimo/Arimo-Regular.ttf',
+                'bold': 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/arimo/Arimo-Bold.ttf',
+                'italic': 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/arimo/Arimo-Italic.ttf',
+                'bold-italic': 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/arimo/Arimo-BoldItalic.ttf',
+            },
+            'adwaita': {
+                'regular': 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/cantarell/Cantarell-Regular.ttf',
+                'bold': 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/cantarell/Cantarell-Bold.ttf',
+                'italic': 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/cantarell/Cantarell-Italic.ttf',
+                'bold-italic': 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/cantarell/Cantarell-BoldItalic.ttf',
+            },
+            'roboto': {
+                'regular': 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/roboto/Roboto-Regular.ttf',
+                'bold': 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/roboto/Roboto-Bold.ttf',
+                'italic': 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/roboto/Roboto-Italic.ttf',
+                'bold-italic': 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/roboto/Roboto-BoldItalic.ttf',
+            },
+            'pixel': {
+                'regular': 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/vt323/VT323-Regular.ttf'
+            },
+            'custom': {}
+        };
+        */
+
+        /* LOC: Lokální konfigurace fontů (odkomentujte pro offline použití a nahraďte online verzi) */
         const fontConfig = {
             'dejavu': {
                 'regular': './fonts/DejaVuSans.ttf',
@@ -369,23 +451,30 @@
                 'italic': './fonts/DejaVuSans-Oblique.ttf',
                 'bold-italic': './fonts/DejaVuSans-BoldOblique.ttf',
             },
+            'liberation': {
+                'regular': './fonts/Arimo-Regular.ttf',
+                'bold': './fonts/Arimo-Bold.ttf',
+                'italic': './fonts/Arimo-Italic.ttf',
+                'bold-italic': './fonts/Arimo-BoldItalic.ttf',
+            },
             'adwaita': {
-                'regular': './fonts/AdwaitaMono-Regular.ttf',
-                'bold': './fonts/AdwaitaMono-Bold.ttf',
-                'italic': './fonts/AdwaitaMono-Italic.ttf',
-                'bold-italic': './fonts/AdwaitaMono-BoldItalic.ttf',
+                'regular': './fonts/Cantarell-Regular.ttf',
+                'bold': './fonts/Cantarell-Bold.ttf',
+                'italic': './fonts/Cantarell-Italic.ttf',
+                'bold-italic': './fonts/Cantarell-BoldItalic.ttf',
             },
-            'liberationsans': {
-                'regular': './fonts/LiberationSans-Regular.ttf',
-                'bold': './fonts/LiberationSans-Bold.ttf',
-                'italic': './fonts/LiberationSans-Italic.ttf',
-                'bold-italic': './fonts/LiberationSans-BoldItalic.ttf',
+            'roboto': {
+                'regular': './fonts/Roboto-Regular.ttf',
+                'bold': './fonts/Roboto-Bold.ttf',
+                'italic': './fonts/Roboto-Italic.ttf',
+                'bold-italic': './fonts/Roboto-BoldItalic.ttf',
             },
-            'afternoon': {
-                'regular': './fonts/Afternoon in Stereo.ttf'
+            'pixel': {
+                'regular': './fonts/VT323-Regular.ttf'
             },
             'custom': {}
         };
+        
 
         let currentAlignH = 'center';
         let currentAlignV = 'center';
@@ -414,6 +503,7 @@
             padLeft: document.getElementById('padLeft'),
         };
         const cornerRadiusVal = document.getElementById('cornerRadiusVal');
+        const textSizeVal = document.getElementById('textSizeVal');
         const borderSettings = document.getElementById('borderSettings');
         const downloadBtn = document.getElementById('downloadBtn');
         const statusMsg = document.getElementById('statusMsg');
@@ -424,6 +514,9 @@
         const lockIcon = document.getElementById('lockIcon');
         const unlockIcon = document.getElementById('unlockIcon');
         const boundsWarning = document.getElementById('boundsWarning');
+        const saveProjectBtn = document.getElementById('saveProjectBtn');
+        const loadProjectBtn = document.getElementById('loadProjectBtn');
+        const jsonInput = document.getElementById('jsonInput');
 
         init();
 
@@ -517,6 +610,10 @@
                 cornerRadiusVal.innerText = inputs.cornerRadius.value;
                 generateTag();
             });
+            
+            inputs.textSize.addEventListener('input', () => {
+                textSizeVal.innerText = inputs.textSize.value;
+            });
 
             setupAlignmentButtons('alignH-container', (val) => { currentAlignH = val; generateTag(); });
             setupAlignmentButtons('alignV-container', (val) => { currentAlignV = val; generateTag(); });
@@ -555,6 +652,154 @@
             });
 
             downloadBtn.addEventListener('click', exportSTL);
+            
+            saveProjectBtn.addEventListener('click', saveProject);
+            loadProjectBtn.addEventListener('click', () => jsonInput.click());
+            jsonInput.addEventListener('change', loadProject);
+        }
+
+        function saveProject() {
+            const projectData = {
+                version: 1,
+                text: inputs.text.value,
+                font: inputs.fontSelect.value,
+                width: inputs.width.value,
+                height: inputs.height.value,
+                cornerRadius: inputs.cornerRadius.value,
+                baseThick: inputs.baseThick.value,
+                textThick: inputs.textThick.value,
+                textSize: inputs.textSize.value,
+                hasBorder: inputs.hasBorder.checked,
+                borderWidth: inputs.borderWidth.value,
+                padTop: inputs.padTop.value,
+                padRight: inputs.padRight.value,
+                padBottom: inputs.padBottom.value,
+                padLeft: inputs.padLeft.value,
+                alignH: currentAlignH,
+                alignV: currentAlignV,
+                isBold: isBold,
+                isItalic: isItalic,
+                paddingLocked: paddingLocked
+            };
+
+            const jsonStr = JSON.stringify(projectData, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const link = document.createElement('a');
+            
+            // Generate filename based on text
+            const rawText = inputs.text.value || "Project";
+            const normalized = rawText.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const words = normalized.trim().split(/\s+/).slice(0, 3).join('_');
+            const cleanName = words.replace(/[^a-zA-Z0-9_]/g, '');
+            const fileName = `Project_${cleanName || 'Untitled'}.json`;
+
+            link.href = URL.createObjectURL(blob);
+            link.download = fileName;
+            link.click();
+        }
+
+        function loadProject(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    applyProjectSettings(data);
+                    // Reset input so same file can be selected again
+                    jsonInput.value = ''; 
+                } catch (err) {
+                    console.error("Error loading project:", err);
+                    alert("Neplatný soubor projektu.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function applyProjectSettings(data) {
+            // Restore values
+            if (data.text !== undefined) inputs.text.value = data.text;
+            if (data.width !== undefined) inputs.width.value = data.width;
+            if (data.height !== undefined) inputs.height.value = data.height;
+            if (data.cornerRadius !== undefined) inputs.cornerRadius.value = data.cornerRadius;
+            if (data.baseThick !== undefined) inputs.baseThick.value = data.baseThick;
+            if (data.textThick !== undefined) inputs.textThick.value = data.textThick;
+            if (data.textSize !== undefined) inputs.textSize.value = data.textSize;
+            if (data.hasBorder !== undefined) inputs.hasBorder.checked = data.hasBorder;
+            if (data.borderWidth !== undefined) inputs.borderWidth.value = data.borderWidth;
+            if (data.padTop !== undefined) inputs.padTop.value = data.padTop;
+            if (data.padRight !== undefined) inputs.padRight.value = data.padRight;
+            if (data.padBottom !== undefined) inputs.padBottom.value = data.padBottom;
+            if (data.padLeft !== undefined) inputs.padLeft.value = data.padLeft;
+            
+            // Restore states
+            if (data.alignH !== undefined) currentAlignH = data.alignH;
+            if (data.alignV !== undefined) currentAlignV = data.alignV;
+            if (data.isBold !== undefined) isBold = data.isBold;
+            if (data.isItalic !== undefined) isItalic = data.isItalic;
+            if (data.paddingLocked !== undefined) paddingLocked = data.paddingLocked;
+
+            // Restore font - fallback if custom
+            if (data.font === 'custom') {
+                inputs.fontSelect.value = 'dejavu'; 
+            } else if (data.font !== undefined) {
+                inputs.fontSelect.value = data.font;
+            }
+
+            // Update UI elements
+            cornerRadiusVal.innerText = inputs.cornerRadius.value;
+            textSizeVal.innerText = inputs.textSize.value;
+
+            // Border UI visibility
+            if (inputs.hasBorder.checked) {
+                borderSettings.style.maxHeight = '100px';
+                borderSettings.style.opacity = '1';
+            } else {
+                borderSettings.style.maxHeight = '0px';
+                borderSettings.style.opacity = '0.5';
+            }
+
+            // Lock Icon UI
+            if (paddingLocked) {
+                lockPaddingBtn.classList.add('active');
+                lockIcon.classList.remove('hidden');
+                unlockIcon.classList.add('hidden');
+            } else {
+                lockPaddingBtn.classList.remove('active');
+                lockIcon.classList.add('hidden');
+                unlockIcon.classList.remove('hidden');
+            }
+
+            // Alignment Buttons UI
+            document.querySelectorAll('#alignH-container button').forEach(btn => {
+                if (btn.dataset.value === currentAlignH) {
+                    btn.classList.add('active', 'bg-indigo-100', 'border-indigo-500', 'text-indigo-700');
+                } else {
+                    btn.classList.remove('active', 'bg-indigo-100', 'border-indigo-500', 'text-indigo-700');
+                }
+            });
+             document.querySelectorAll('#alignV-container button').forEach(btn => {
+                if (btn.dataset.value === currentAlignV) {
+                    btn.classList.add('active', 'bg-indigo-100', 'border-indigo-500', 'text-indigo-700');
+                } else {
+                    btn.classList.remove('active', 'bg-indigo-100', 'border-indigo-500', 'text-indigo-700');
+                }
+            });
+
+            // Bold/Italic Buttons UI
+            updateStyleButtonsUI();
+
+            // Font UI visibility
+            if (inputs.fontSelect.value === 'custom') {
+                 customFontGroup.classList.remove('hidden');
+                 disableStyleButtons(true);
+            } else {
+                 customFontGroup.classList.add('hidden');
+            }
+
+            // Trigger regeneration
+            updateFont();
         }
 
         function applyLanguage(lang) {
