@@ -4,13 +4,108 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Generátor 3D Štítků</title>
-    
-    <!-- ONLINE: Použití online verze Tailwind CSS 
-    <script src="https://cdn.tailwindcss.com"></script> -->
-    
-    <!-- LOC: Lokální verze Tailwind (odkomentujte pro offline použití) -->
-    <script src="./libs/tailwindcss.js"></script>
 
+    <!-- ================================================================= -->
+    <!-- CENTRÁLNÍ KONFIGURACE (PŘEPÍNAČ ONLINE / OFFLINE)                 -->
+    <!-- ================================================================= -->
+    <script>
+        // Změňte na true pro použití lokálních souborů (složky ./libs a ./fonts)
+        const IS_OFFLINE = true; 
+
+        // Konfigurace cest
+        const CONFIG = {
+            online: {
+                tailwind: 'https://cdn.tailwindcss.com',
+                importMap: {
+                    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+                },
+                // Definice online fontů (různé CDN)
+                fonts: {
+                    'dejavu': {
+                        'regular': 'https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans.ttf',
+                        'bold': 'https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans-Bold.ttf',
+                        'italic': 'https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans-Oblique.ttf',
+                        'bold-italic': 'https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans-BoldOblique.ttf',
+                    },
+                    'liberation': {
+                        'regular': 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/arimo/Arimo-Regular.ttf',
+                        'bold': 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/arimo/Arimo-Bold.ttf',
+                        'italic': 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/arimo/Arimo-Italic.ttf',
+                        'bold-italic': 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/arimo/Arimo-BoldItalic.ttf',
+                    },
+                    'adwaita': {
+                        'regular': 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/cantarell/Cantarell-Regular.ttf',
+                        'bold': 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/cantarell/Cantarell-Bold.ttf',
+                        'italic': 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/cantarell/Cantarell-Italic.ttf',
+                        'bold-italic': 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/cantarell/Cantarell-BoldItalic.ttf',
+                    },
+                    'roboto': {
+                        'regular': 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/roboto/Roboto-Regular.ttf',
+                        'bold': 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/roboto/Roboto-Bold.ttf',
+                        'italic': 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/roboto/Roboto-Italic.ttf',
+                        'bold-italic': 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/roboto/Roboto-BoldItalic.ttf',
+                    },
+                    'pixel': {
+                        'regular': 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/vt323/VT323-Regular.ttf'
+                    },
+                    'custom': {}
+                }
+            },
+            offline: {
+                tailwind: './libs/tailwindcss.js',
+                importMap: {
+                    "three": "./libs/build/three.module.js",
+                    "three/addons/": "./libs/examples/jsm/"
+                },
+                // Definice lokálních fontů (vše ve složce ./fonts/)
+                fonts: {
+                    'dejavu': {
+                        'regular': './fonts/DejaVuSans.ttf',
+                        'bold': './fonts/DejaVuSans-Bold.ttf',
+                        'italic': './fonts/DejaVuSans-Oblique.ttf',
+                        'bold-italic': './fonts/DejaVuSans-BoldOblique.ttf',
+                    },
+                    'liberation': {
+                        'regular': './fonts/Arimo-Regular.ttf',
+                        'bold': './fonts/Arimo-Bold.ttf',
+                        'italic': './fonts/Arimo-Italic.ttf',
+                        'bold-italic': './fonts/Arimo-BoldItalic.ttf',
+                    },
+                    'adwaita': {
+                        'regular': './fonts/Cantarell-Regular.ttf',
+                        'bold': './fonts/Cantarell-Bold.ttf',
+                        'italic': './fonts/Cantarell-Italic.ttf',
+                        'bold-italic': './fonts/Cantarell-BoldItalic.ttf',
+                    },
+                    'roboto': {
+                        'regular': './fonts/Roboto-Regular.ttf',
+                        'bold': './fonts/Roboto-Bold.ttf',
+                        'italic': './fonts/Roboto-Italic.ttf',
+                        'bold-italic': './fonts/Roboto-BoldItalic.ttf',
+                    },
+                    'pixel': {
+                        'regular': './fonts/VT323-Regular.ttf'
+                    },
+                    'custom': {}
+                }
+            }
+        };
+
+        // Výběr aktivní konfigurace
+        const activeConfig = IS_OFFLINE ? CONFIG.offline : CONFIG.online;
+
+        // 1. Injekce Tailwind CSS
+        document.write(`<script src="${activeConfig.tailwind}"><\/script>`);
+
+        // 2. Injekce Import Map (musí být před načtením modulů)
+        const mapJson = JSON.stringify({ imports: activeConfig.importMap });
+        document.write(`<script type="importmap">${mapJson}<\/script>`);
+
+        // 3. Uložení konfigurace fontů do globálního prostoru pro hlavní aplikaci
+        window.APP_FONT_CONFIG = activeConfig.fonts;
+    </script>
+    <!-- ================================================================= -->
 
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
@@ -46,27 +141,6 @@
             cursor: pointer;
         }
     </style>
-
-    <!-- ONLINE: Import Map pro online Three.js moduly 
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-            }
-        }
-    </script>-->
-
-    <!-- LOC: Lokální Import Map (odkomentujte pro offline použití)-->
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "./libs/build/three.module.js",
-                "three/addons/": "./libs/examples/jsm/"
-            }
-        }
-    </script>
-    
 </head>
 <body class="text-slate-800">
 
@@ -113,7 +187,6 @@
                             </select>
                             
                             <!-- Style Buttons (B/I) -->
-                            <!-- Classes moved inline for reliability without build step -->
                             <button id="btnBold" class="w-8 h-8 flex items-center justify-center rounded border border-slate-300 hover:bg-slate-100 text-slate-700 font-serif transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed font-bold" title="Tučné" data-i18n-title="title_bold">B</button>
                             <button id="btnItalic" class="w-8 h-8 flex items-center justify-center rounded border border-slate-300 hover:bg-slate-100 text-slate-700 font-serif transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed italic" title="Kurzíva" data-i18n-title="title_italic">I</button>
                         </div>
@@ -385,73 +458,8 @@
         let boundsHelper = null; 
         let loadedFont = null;
         
-        // Font Configuration with Variants (Updated to stable CDNs)
-        // ONLINE VERSION
-        /*
-        const fontConfig = {
-            'dejavu': {
-                'regular': 'https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans.ttf',
-                'bold': 'https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans-Bold.ttf',
-                'italic': 'https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans-Oblique.ttf',
-                'bold-italic': 'https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans-BoldOblique.ttf',
-            },
-            'liberation': {
-                'regular': 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/arimo/Arimo-Regular.ttf',
-                'bold': 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/arimo/Arimo-Bold.ttf',
-                'italic': 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/arimo/Arimo-Italic.ttf',
-                'bold-italic': 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/arimo/Arimo-BoldItalic.ttf',
-            },
-            'adwaita': {
-                'regular': 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/cantarell/Cantarell-Regular.ttf',
-                'bold': 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/cantarell/Cantarell-Bold.ttf',
-                'italic': 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/cantarell/Cantarell-Italic.ttf',
-                'bold-italic': 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/cantarell/Cantarell-BoldItalic.ttf',
-            },
-            'roboto': {
-                'regular': 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/roboto/Roboto-Regular.ttf',
-                'bold': 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/roboto/Roboto-Bold.ttf',
-                'italic': 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/roboto/Roboto-Italic.ttf',
-                'bold-italic': 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/roboto/Roboto-BoldItalic.ttf',
-            },
-            'pixel': {
-                'regular': 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/vt323/VT323-Regular.ttf'
-            },
-            'custom': {}
-        };
-        */
-
-        /* LOC: Lokální konfigurace fontů (odkomentujte pro offline použití a nahraďte online verzi) */
-        const fontConfig = {
-            'dejavu': {
-                'regular': './fonts/DejaVuSans.ttf',
-                'bold': './fonts/DejaVuSans-Bold.ttf',
-                'italic': './fonts/DejaVuSans-Oblique.ttf',
-                'bold-italic': './fonts/DejaVuSans-BoldOblique.ttf',
-            },
-            'liberation': {
-                'regular': './fonts/Arimo-Regular.ttf',
-                'bold': './fonts/Arimo-Bold.ttf',
-                'italic': './fonts/Arimo-Italic.ttf',
-                'bold-italic': './fonts/Arimo-BoldItalic.ttf',
-            },
-            'adwaita': {
-                'regular': './fonts/Cantarell-Regular.ttf',
-                'bold': './fonts/Cantarell-Bold.ttf',
-                'italic': './fonts/Cantarell-Italic.ttf',
-                'bold-italic': './fonts/Cantarell-BoldItalic.ttf',
-            },
-            'roboto': {
-                'regular': './fonts/Roboto-Regular.ttf',
-                'bold': './fonts/Roboto-Bold.ttf',
-                'italic': './fonts/Roboto-Italic.ttf',
-                'bold-italic': './fonts/Roboto-BoldItalic.ttf',
-            },
-            'pixel': {
-                'regular': './fonts/VT323-Regular.ttf'
-            },
-            'custom': {}
-        };
-        
+        // Font Config - načte se z globální proměnné nastavené v hlavičce
+        const fontConfig = window.APP_FONT_CONFIG || {};
 
         let currentAlignH = 'center';
         let currentAlignV = 'center';
